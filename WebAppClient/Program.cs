@@ -182,6 +182,46 @@ void CheckContactInHandbook(string ln){
     }
 }
 
+void FindContactInHandbook(string search){
+    string request = "/find_contact?search=" + search;
+
+    var responce = client.PostAsync(request, null).Result;
+    if (responce.IsSuccessStatusCode){
+        var content = responce.Content.ReadAsStringAsync().Result;
+        List<Person> pokaz = Deserialize(content);
+        if (pokaz.Count == 1){
+            System.Console.WriteLine("Last_Name\t First_name\t Telephon\t Email\t Country\t Role");
+            System.Console.WriteLine($"{pokaz[0].Last_name}\t {pokaz[0].First_name}\t {pokaz[0].Telephon}\t {pokaz[0].Email}\t {pokaz[0].Country}\t {pokaz[0].Role}");
+        }
+        else{
+            System.Console.WriteLine($"Found {pokaz.Count} contacts with your request");
+            System.Console.WriteLine("   Last_Name\t First_name\t Telephon\t Email\t\t Country\t Role");
+            for (int i = 0; i < pokaz.Count; i++){
+                System.Console.WriteLine($"{i+1}  {pokaz[i].Last_name}\t {pokaz[i].First_name}\t\t {pokaz[i].Telephon}\t {pokaz[i].Email}\t\t {pokaz[i].Country}\t\t {pokaz[i].Role}");
+            }
+            System.Console.WriteLine();
+            System.Console.WriteLine("Enter the number of the contact you want to view: ");
+            string choice = Console.ReadLine();
+            int a = 0;
+            if (int.TryParse(choice, out a)){
+                if (a < 0 || a > pokaz.Count){
+                    System.Console.WriteLine("Invalid enter");
+                }
+                else{
+                    System.Console.WriteLine("Last_Name\t First_name\t Telephon\t Email\t\t Country\t Role");
+                    System.Console.WriteLine($"{pokaz[a-1].Last_name}\t {pokaz[a-1].First_name}\t\t {pokaz[a-1].Telephon}\t {pokaz[a-1].Email}\t\t {pokaz[a-1].Country}\t\t {pokaz[a-1].Role}");
+                }
+            }
+            else{
+                System.Console.WriteLine("Invalid enter");
+            }
+        }
+    }
+    else{
+        System.Console.WriteLine(responce.Content.ReadAsStringAsync().Result);
+    }
+}
+
 void DeleteContactInHandbook(string sn){
     string request = "/delete_contact?surname=" + sn;
 
@@ -374,6 +414,7 @@ try{
     byte _exit = 0;
 
     while (!exit){
+        System.Console.WriteLine("We are glad to welcome you to our telephone directory!");
         System.Console.WriteLine("Choose what you want to do (write number):");
         System.Console.WriteLine("1. Sign up");
         System.Console.WriteLine("2. Log in");
@@ -401,6 +442,7 @@ try{
                     }
 
                     System.Console.WriteLine("Right now you can log in");
+                    System.Console.WriteLine();
                     break;
                 case 2:
                     Console.Write("Write your login: ");
@@ -436,10 +478,11 @@ try{
         System.Console.WriteLine("3. Check one contact");
         System.Console.WriteLine("4. Check all contacts");
         System.Console.WriteLine("5. Update information about contact");
-        System.Console.WriteLine("6. Check history of requests");
-        System.Console.WriteLine("7. Delete history of requests");
-        System.Console.WriteLine("8. Change password");
-        System.Console.WriteLine("9. Exit");
+        System.Console.WriteLine("6. Find contact");
+        System.Console.WriteLine("7. Check history of requests");
+        System.Console.WriteLine("8. Delete history of requests");
+        System.Console.WriteLine("9. Change password");
+        System.Console.WriteLine("10. Exit");
         System.Console.Write("Input: ");
         string? choice = Console.ReadLine();
         int action = 0;
@@ -623,12 +666,23 @@ try{
                     }
                     break;
                 case 6:
-                    CheckHistoryofUser();
+                    System.Console.WriteLine("Enter a symbol or some symbols without spaces to search for a contact: ");
+                    input = Console.ReadLine();
+                    if (input == null || input == " " || input == "" || Regex.IsMatch(input, "[!-@]+")){
+                        System.Console.WriteLine("Invalid enter");
+                    }
+                    else{
+                        FindContactInHandbook(input);
+                        System.Console.WriteLine();
+                    }
                     break;
                 case 7:
-                    DeleteHistoryofUser();
+                    CheckHistoryofUser();
                     break;
                 case 8:
+                    DeleteHistoryofUser();
+                    break;
+                case 9:
                     System.Console.WriteLine("Enter New Password: ");
                     input = Console.ReadLine();
                     if (input == null || input == " "){
@@ -638,7 +692,7 @@ try{
                         MakeNewPassword(login, input);
                     }
                     break;
-                case 9:
+                case 10:
                     exit = true;
                     break;
                 default:

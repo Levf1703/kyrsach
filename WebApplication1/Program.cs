@@ -28,6 +28,7 @@ app.MapDelete("/delete_history", [Authorize] (HttpContext context) => hb.DeleteH
 app.MapPatch("/change_password", [Authorize] (HttpContext context, [FromBody] User user) => hb.ChangePasswordUser(context, user));
 app.MapPost("/add_contact", [Authorize] ([FromBody] Person person, HttpContext context) => hb.AddContact(person, context));
 app.MapGet("/check_contact", [Authorize] (HttpContext context, string surname) => hb.CheckContact(context, surname));
+app.MapPost("/find_contact", [Authorize] (HttpContext context, string search) => hb.FindContact(context, search));
 app.MapGet("/check_contacts", [Authorize] (HttpContext context) => hb.CheckContacts(context));
 app.MapPatch("/update_contact", [Authorize] (HttpContext context, [FromBody] NewPerson person) => hb.UpDateContact(context, person));
 app.MapDelete("/delete_contact", [Authorize] (HttpContext context, string surname) => hb.Delete_Contact(context, surname));
@@ -39,6 +40,9 @@ app.Run();
 
 public class HBWebAdapter{
     private OptionsBook ob = new OptionsBook();
+    private string login = "";
+    private bool answer;
+    private List<Person> count;
 
     public async Task<IResult> LogIn(string login, string password, HttpContext context){
         if (!ob.Login(login, password)){
@@ -61,13 +65,12 @@ public class HBWebAdapter{
     }
 
     public IResult AddContact(Person contact, HttpContext context){
-        string login = "";
         if (context.User.Identity == null)
             return Results.Unauthorized();
         else
             login = context.User.Identity.Name;
         
-        bool answer = ob.Add_Contact(login, contact);
+        answer = ob.Add_Contact(login, contact);
         if (answer)
             return Results.Ok("You added new contact");
         else
@@ -75,12 +78,11 @@ public class HBWebAdapter{
     }   
 
     public IResult CheckContact(HttpContext context, string surname){
-        string login = "";
         if (context.User.Identity == null)
             return Results.Unauthorized();
         else
             login = context.User.Identity.Name;
-        List<Person> count = ob.Check_Contact(login, surname);
+        count = ob.Check_Contact(login, surname);
         if (count.Count == 0)
             return Results.NotFound("This contact not found");
         else
@@ -88,28 +90,26 @@ public class HBWebAdapter{
     }
 
     public IResult CheckContacts(HttpContext context){
-        string login = "";
         if (context.User.Identity == null)
             return Results.Unauthorized();
         else
             login = context.User.Identity.Name;
-            List<Person> output = ob.Check_Contacts(login);
-            return Results.Ok(output);
+            count = ob.Check_Contacts(login);
+            return Results.Ok(count);
     }
 
     public IResult UpDateContact(HttpContext context, NewPerson person){
-        string login = "";
         if (context.User.Identity == null)
             return Results.Unauthorized();
         else
             login = context.User.Identity.Name;
         
-        bool count = ob.Update_Contact(login, person);
-        if (!count){
-            List<Person> answer = ob.Check_Contact(login, person.Last_name);
-            if (answer.Count > 1 && (person.Telephon == "" || person.Telephon == " "))
+        answer = ob.Update_Contact(login, person);
+        if (!answer){
+            count = ob.Check_Contact(login, person.Last_name);
+            if (count.Count > 1 && (person.Telephon == "" || person.Telephon == " "))
                 return Results.Ok(answer);
-            if (answer.Count == 0)
+            if (count.Count == 0)
                 return Results.NotFound("This contact not found");
             return Results.BadRequest("This contact wasn't successfully updated");
         }
@@ -119,17 +119,16 @@ public class HBWebAdapter{
     }
 
     public IResult Delete_Contact(HttpContext context, string surname){
-        string login = "";
         if (context.User.Identity == null)
             return Results.Unauthorized();
         else
             login = context.User.Identity.Name;
-        bool count = ob.Delete_Contact(login, surname);
-        if (!count){
-            List<Person> answer = ob.Check_Contact(login, surname);
-            if (answer.Count > 1)
+        answer = ob.Delete_Contact(login, surname);
+        if (!answer){
+            count = ob.Check_Contact(login, surname);
+            if (count.Count > 1)
                 return Results.Ok(answer);
-            if (answer.Count == 0)
+            if (count.Count == 0)
                 return Results.NotFound("This contact not found");
             return Results.BadRequest("This contact wasn't successfully deleted");
         }
@@ -139,20 +138,29 @@ public class HBWebAdapter{
     }
 
     public IResult Delete_Contact_Tel(HttpContext context, string phone){
-        string login = "";
         if (context.User.Identity == null)
             return Results.Unauthorized();
         else
             login = context.User.Identity.Name;
-        bool count = ob.Delete_Contact_Tel(login, phone);
-        if (count)
+        answer = ob.Delete_Contact_Tel(login, phone);
+        if (answer)
             return Results.Ok("This contact was successfully deleted");
         else
             return Results.BadRequest("Failed to delete");
     }
+    public IResult FindContact(HttpContext context, string s){
+        if (context.User.Identity == null)
+            return Results.Unauthorized();
+        else
+            login = context.User.Identity.Name;
+        count = ob.Find_Contact(login, s);
+        if (count.Count > 0)
+            return Results.Ok(count);
+        else
+            return Results.BadRequest("Failed to find contact with your request");
+    }
 
     public IResult ShowHistory(HttpContext context){
-        string login = "";
         if (context.User.Identity == null)
             return Results.Unauthorized();
         else
@@ -162,7 +170,6 @@ public class HBWebAdapter{
     }
 
     public IResult DeleteHistory(HttpContext context){
-        string login = "";
         if (context.User.Identity == null)
             return Results.Unauthorized();
         else
@@ -175,7 +182,6 @@ public class HBWebAdapter{
     }
 
     public IResult ChangePasswordUser(HttpContext context, User user){
-        string login = "";
         if (context.User.Identity == null)
             return Results.Unauthorized();
         else
@@ -220,8 +226,12 @@ public struct NewPerson{
 
 public class OptionsBook
 {
-    DBManager manag = new DBManager();
-    const string DB_Path = "/home/andrey/code/users.db";
+    private DBManager manag = new DBManager();
+    private const string DB_Path = "/home/andrey/code/users.db";
+    private List<Person> pep = new List<Person>();
+    private List<Person> count = new List<Person>();
+    private List<string> answer = new List<string>();
+
     public bool Login(string log, string pass){
         manag.ConnectToBD(DB_Path);
         if (manag.CheckUser(log, pass)){
@@ -250,8 +260,8 @@ public class OptionsBook
     }
     public List<Person> Check_Contact(string log, string sn){
         manag.ConnectToBD(DB_Path);
-        List<Person> pep = manag.CheckContact(log);
-        List<Person> count = Duplicate(pep, sn);
+        pep = manag.CheckContact(log);
+        count = Duplicate(pep, sn);
         if (count.Count == 0)
             manag.WriteAction(log, $"Failed to check contact with surname: {sn}");
         else
@@ -261,16 +271,16 @@ public class OptionsBook
     }
     public List<Person> Check_Contacts(string log){
         manag.ConnectToBD(DB_Path);
-        List<Person> pep = manag.CheckContact(log);
-        List<Person> count = SortList(pep, 0, pep.Count-1);
+        pep = manag.CheckContact(log);
+        count = SortList(pep, 0, pep.Count-1);
         manag.WriteAction(log, "Checked all contacts");
         manag.Disconnect();
         return count;
     }
     public bool Add_Contact(string log, Person kent){
         manag.ConnectToBD(DB_Path);
-        List<Person> pep = manag.CheckContact(log);
-        List<Person> count = Duplicate(pep, kent.Last_name);
+        pep = manag.CheckContact(log);
+        count = Duplicate(pep, kent.Last_name);
         if (count.Count == 0){
             if (manag.AddContact(kent, log)){
                 manag.WriteAction(log, "Added new contact");
@@ -310,8 +320,8 @@ public class OptionsBook
     }
     public bool Update_Contact(string log, NewPerson kent){
         manag.ConnectToBD(DB_Path);
-        List<Person> pep = manag.CheckContact(log);
-        List<Person> count = Duplicate(pep, kent.Last_name);
+        pep = manag.CheckContact(log);
+        count = Duplicate(pep, kent.Last_name);
         if (count.Count == 0){
             manag.WriteAction(log, "Failed to update contact");
             manag.Disconnect();
@@ -346,8 +356,8 @@ public class OptionsBook
     }
     public bool Delete_Contact(string log, string sn){
         manag.ConnectToBD(DB_Path);
-        List<Person> pep = manag.CheckContact(log);
-        List<Person> count = Duplicate(pep, sn);
+        pep = manag.CheckContact(log);
+        count = Duplicate(pep, sn);
         if (count.Count == 0){
             manag.WriteAction(log, "Failed to delete contact");
             manag.Disconnect();
@@ -381,9 +391,26 @@ public class OptionsBook
             return false;
         }
     }
+    public List<Person> Find_Contact(string log, string search){
+        manag.ConnectToBD(DB_Path);
+        pep = manag.CheckContact(log);
+        count = SortList(pep, 0, pep.Count-1);
+        List<Person> output = new List<Person>();
+        for (int i = 0; i < count.Count; i++){
+            string ls = count[i].Last_name.ToLower();
+            string fs = count[i].First_name.ToLower();
+            if (ls.Contains(search.ToLower()) || fs.Contains(search.ToLower())){
+                Person men = count[i];
+                output.Add(men);
+            }
+        }
+        manag.WriteAction(log, "Found contact");
+        manag.Disconnect();
+        return output;
+    }
     public List<string> Check_History(string log){
         manag.ConnectToBD(DB_Path);
-        List<string> answer = manag.CheckHistory(log);
+        answer = manag.CheckHistory(log);
         manag.Disconnect();
         return answer;
     }
@@ -402,18 +429,25 @@ public class OptionsBook
     }
     public bool Change_Password(User u){
         manag.ConnectToBD(DB_Path);
-        if (manag.ChangePassword(u.Login, u.Password)){
-            manag.WriteAction(u.Login, "Changed password");
-            manag.Disconnect();
-            return true;
-        }
-        else{
+        if (manag.CheckUser(u.Login, u.Password)){
             manag.WriteAction(u.Login, "Failed to change password");
             manag.Disconnect();
             return false;
         }
+        else{
+            if (manag.ChangePassword(u.Login, u.Password)){
+                manag.WriteAction(u.Login, "Changed password");
+                manag.Disconnect();
+                return true;
+            }
+            else{
+                manag.WriteAction(u.Login, "Failed to change password");
+                manag.Disconnect();
+                return false;
+            }
+        }
     }
-    public List<Person> Duplicate(List<Person> list, string lasnam){
+    private List<Person> Duplicate(List<Person> list, string lasnam){
         list = SortList(list, 0, list.Count-1);
         Person answer = BinarySearch1(list, lasnam);
         if (answer.Last_name == lasnam){
@@ -433,7 +467,7 @@ public class OptionsBook
             return net;
         }
     }
-    public List<Person> SortList(List<Person> people, int first, int last){
+    private List<Person> SortList(List<Person> people, int first, int last){
         int index = 0;
         int l_hold = first;
         int r_hold = last;
@@ -466,7 +500,7 @@ public class OptionsBook
             SortList(people, index + 1, last);
         return people;
     }
-    public Person BinarySearch1(List<Person> list, string lasnam){
+    private Person BinarySearch1(List<Person> list, string lasnam){
         int low = 0, high = list.Count-1;
         int center = (int)((low + high)/2);
         string middle = list[center].Last_name;
@@ -498,7 +532,7 @@ public class OptionsBook
             return net;
         }
     }
-    public bool CompareName(string name1, string name2, string operate){
+    private bool CompareName(string name1, string name2, string operate){
         int i = 0;
         while (i < Math.Min(name1.Length, name2.Length)){
             if (operate == ">"){

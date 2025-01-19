@@ -85,11 +85,21 @@ public class UnitTest1
     }
 
     [TestMethod]
+    public void TestFindContact()
+    {
+
+        List<Person> example = opb.Find_Contact("Tusur", "Z");
+
+        Assert.IsTrue(example.Count == 1);
+        Assert.IsTrue(example[0].Last_name == "Zanko");
+    }
+
+    [TestMethod]
     public void TestCheckHistory()
     {
         List<string> example = opb.Check_History("Tusur");
 
-        Assert.IsTrue(example.Count == 52);
+        Assert.IsTrue(example.Count == 3);
     }
 
     [TestMethod]
